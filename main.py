@@ -253,6 +253,9 @@ class BlindWriter(QMainWindow):
                 content = f.read()
                 if content:
                     self.textbox.setText(content)
+                    file_path_splitted = self.file_path.split("/")
+                    file_name = file_path_splitted[-1]
+                    self.file_name_label.setText(file_name)
                     self.init_text = content
                 else:
                     self.textbox.clear()
@@ -302,13 +305,17 @@ class BlindWriter(QMainWindow):
 
     def save_and_clear(self):
         self.save()
-        self.textbox.clear()
+
+        if self.file_path:
+            self.textbox.clear()
 
     def save(self) -> None:
         if self.textbox.isVisible():
             if self.file_path:
                 with open(self.file_path, "a", encoding="utf-8") as f:
                     f.write(self.textbox.toPlainText().strip())
+
+                self.update_recent_file_name()
             else:
                 self.down_save()
 
@@ -320,18 +327,38 @@ class BlindWriter(QMainWindow):
         )
         if file_path:
             file_path += ".txt"
-            file_path_splitted = file_path.split("/")
-            file_name = file_path_splitted[-1]
-            self.file_name_label.setText(file_name)
-            self.file_path = file_path
-
-            self.config.set(
-                "recent_file", "save_file_path", "/".join(file_path_splitted[:-1])
-            )
-            self.write_config_file()
+            self.update_recent_save_path(file_path)
+            self.update_recent_file_name(file_path)
 
             with open(self.file_path, "w") as f:
                 f.write(self.textbox.toPlainText().strip())
+
+            QMessageBox.information(
+                self,
+                "Enregistrement réussi",
+                f"Le fichier a été enregistré sous :\n{self.file_path}\n\nRépertoire : {self.config.get('recent_file', 'save_file_path')}",
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                "Enregistrement non-effectué",
+                "Veuillez sélectionner un dossier",
+            )
+
+    def update_recent_save_path(self, file_path: str) -> None:
+        file_path_splitted = file_path.split("/")
+        file_name = file_path_splitted[-1]
+        self.file_name_label.setText(file_name)
+        self.file_path = file_path
+
+        self.config.set(
+            "recent_file", "save_file_path", "/".join(file_path_splitted[:-1])
+        )
+        self.write_config_file()
+
+    def update_recent_file_name(self) -> None:
+        self.config.set("recent_file", "name", self.file_path)
+        self.write_config_file()
 
     def onKeyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key_Escape:
